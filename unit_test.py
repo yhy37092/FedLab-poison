@@ -36,8 +36,9 @@ args.sample_ratio = 0.2
 args.batch_size = 600
 args.epochs = 5
 args.lr = 0.05
+args.cuda = False
 
-args.preprocess = False
+args.preprocess = True
 args.seed = 0
 
 args.alg = "fedavg"  # fedavg, fedprox, scaffold, fednova, feddyn
@@ -49,7 +50,8 @@ args.alpha = 0.01  # feddyn
 setup_seed(args.seed)
 test_data = torchvision.datasets.MNIST(root="./datasets/mnist/",
                                        train=False,
-                                       transform=transforms.ToTensor())
+                                       transform=transforms.ToTensor(),
+                                       download=True)
 
 test_loader = DataLoader(test_data, batch_size=1024)
 
@@ -60,14 +62,14 @@ if args.alg == "fedavg":
     handler = SyncServerHandler(model=model,
                                 global_round=args.com_round,
                                 sample_ratio=args.sample_ratio)
-    trainer = SGDSerialClientTrainer(model, args.total_client, cuda=True)
+    trainer = SGDSerialClientTrainer(model, args.total_client, cuda=args.cuda)
     trainer.setup_optim(args.epochs, args.batch_size, args.lr)
 
 if args.alg == "fedprox":
     handler = FedProxServerHandler(model=model,
                                    global_round=args.com_round,
                                    sample_ratio=args.sample_ratio)
-    trainer = FedProxSerialClientTrainer(model, args.total_client, cuda=True)
+    trainer = FedProxSerialClientTrainer(model, args.total_client, cuda=args.cuda)
     trainer.setup_optim(args.epochs, args.batch_size, args.lr, mu=args.mu)
 
 if args.alg == "scaffold":
@@ -76,7 +78,7 @@ if args.alg == "scaffold":
                                     sample_ratio=args.sample_ratio)
     handler.setup_optim(lr=args.lr)
 
-    trainer = ScaffoldSerialClientTrainer(model, args.total_client, cuda=True)
+    trainer = ScaffoldSerialClientTrainer(model, args.total_client, cuda=args.cuda)
     trainer.setup_optim(args.epochs, args.batch_size, args.lr)
 
 if args.alg == "fednova":
@@ -84,7 +86,7 @@ if args.alg == "fednova":
                                    global_round=args.com_round,
                                    sample_ratio=args.sample_ratio)
     handler.setup_optim()
-    trainer = FedNovaSerialClientTrainer(model, args.total_client, cuda=True)
+    trainer = FedNovaSerialClientTrainer(model, args.total_client, cuda=args.cuda)
     trainer.setup_optim(args.epochs, args.batch_size, args.lr)
 
 if args.alg == "feddyn":
@@ -92,10 +94,14 @@ if args.alg == "feddyn":
                                   global_round=args.com_round,
                                   sample_ratio=args.sample_ratio)
     handler.setup_optim(alpha=args.alpha)
-    trainer = FedDynSerialClientTrainer(model, args.total_client, cuda=True)
+    trainer = FedDynSerialClientTrainer(model, args.total_client, cuda=args.cuda)
     trainer.setup_optim(args.epochs, args.batch_size, args.lr, args.alpha)
 
-mnist = PathologicalMNIST(root='./datasets/mnist/', path="./datasets/mnist/pathmnist", num_clients=args.total_client, shards=200)
+mnist = PathologicalMNIST(root='./datasets/mnist/',
+                          path="./datasets/mnist/pathmnist",
+                          num_clients=args.total_client,
+                          shards=200,
+                          preprocess=args.preprocess)
 # mnist = PartitionedMNIST(root='./datasets/mnist/',
 #                          path="./datasets/mnist/fedmnist_iid",
 #                          num_clients=args.total_client,
